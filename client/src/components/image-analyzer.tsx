@@ -35,10 +35,14 @@ export default function ImageAnalyzer() {
         description: "Marketing copy has been generated for your product!",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error?.response?.status === 503
+        ? "AI service is temporarily overloaded. Please try again in a moment."
+        : "Failed to analyze image. Please try again later.";
+        
       toast({
         title: "Error",
-        description: "Failed to analyze image. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },

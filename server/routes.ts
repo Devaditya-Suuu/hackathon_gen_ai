@@ -128,12 +128,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       fs.unlinkSync(imagePath);
 
       res.json(analysis);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Image analysis error:", error);
       if (req.file) {
         fs.unlinkSync(req.file.path);
       }
-      res.status(500).json({ message: "Failed to analyze image" });
+      
+      // Check if it's a Gemini API overload error
+      if (error.message && (error.message.includes('overloaded') || error.message.includes('503'))) {
+        return res.status(503).json({ 
+          message: "AI service is temporarily overloaded. Please try again in a moment.",
+          retryAfter: 30
+        });
+      }
+      
+      res.status(500).json({ 
+        message: "Failed to analyze image. Please try again later." 
+      });
     }
   });
 
