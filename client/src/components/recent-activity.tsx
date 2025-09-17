@@ -1,8 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Feather, Eye, Hash } from "lucide-react";
 
+interface Activity {
+  type: string;
+  title: string;
+  createdAt: Date;
+}
+
 export default function RecentActivity() {
-  const { data: activities, isLoading } = useQuery({
+  const { data: activities, isLoading } = useQuery<Activity[]>({
     queryKey: ['/api/activity'],
   });
 

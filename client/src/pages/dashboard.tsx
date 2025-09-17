@@ -9,13 +9,14 @@ import HeritageAssistant from "@/components/heritage-assistant";
 import MarketTrends from "@/components/market-trends";
 import PortfolioBuilder from "@/components/portfolio-builder";
 import RecentActivity from "@/components/recent-activity";
+import type { User, Analytics } from "@shared/schema";
 
 export default function Dashboard() {
-  const { data: user } = useQuery({
+  const { data: user } = useQuery<User>({
     queryKey: ['/api/user'],
   });
 
-  const { data: analytics } = useQuery({
+  const { data: analytics } = useQuery<Analytics>({
     queryKey: ['/api/analytics'],
   });
 

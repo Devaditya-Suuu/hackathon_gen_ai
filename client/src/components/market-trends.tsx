@@ -1,8 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3 } from "lucide-react";
 
+interface MarketTrends {
+  demandIncrease: number;
+  avgPrice: number;
+  keywords: string[];
+}
+
 export default function MarketTrends() {
-  const { data: trends, isLoading } = useQuery({
+  const { data: trends, isLoading } = useQuery<MarketTrends>({
     queryKey: ['/api/market-trends', 'Pottery'],
   });
 
