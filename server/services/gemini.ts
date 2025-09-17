@@ -4,8 +4,52 @@ import { GoogleGenAI } from "@google/genai";
 // This API key is from Gemini Developer API Key, not vertex AI API Key
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
-export async function generateStory(craftType: string, focus: string): Promise<{ title: string; content: string }> {
+// Retry configuration
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelay: 1000, // 1 second
+  maxDelay: 10000, // 10 seconds
+};
+
+// Helper function to retry API calls with exponential backoff
+async function retryWithBackoff<T>(
+  operation: () => Promise<T>,
+  context: string
+): Promise<T> {
+  let lastError: any;
+  
+  for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
     try {
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+      
+      // Don't retry for certain error types
+      if (error.status === 400 || error.status === 401 || error.status === 403) {
+        throw error;
+      }
+      
+      // If this was the last attempt, throw the error
+      if (attempt === RETRY_CONFIG.maxRetries) {
+        break;
+      }
+      
+      // Calculate delay with exponential backoff
+      const delay = Math.min(
+        RETRY_CONFIG.baseDelay * Math.pow(2, attempt),
+        RETRY_CONFIG.maxDelay
+      );
+      
+      console.warn(`${context} failed (attempt ${attempt + 1}/${RETRY_CONFIG.maxRetries + 1}), retrying in ${delay}ms:`, error.message);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError;
+}
+
+export async function generateStory(craftType: string, focus: string): Promise<{ title: string; content: string }> {
+    return retryWithBackoff(async () => {
         const prompt = `Create a compelling narrative story for a ${craftType} artisan. 
         
         Focus area: ${focus}
@@ -46,14 +90,11 @@ export async function generateStory(craftType: string, focus: string): Promise<{
         } else {
             throw new Error("Empty response from model");
         }
-    } catch (error) {
-        console.error("Story generation error:", error);
-        throw new Error(`Failed to generate story: ${error}`);
-    }
+    }, "Story generation");
 }
 
 export async function analyzeImage(imagePath: string): Promise<{ description: string; marketingCopy: string }> {
-    try {
+    return retryWithBackoff(async () => {
         const imageBytes = fs.readFileSync(imagePath);
 
         const contents = [
@@ -103,14 +144,11 @@ export async function analyzeImage(imagePath: string): Promise<{ description: st
         } else {
             throw new Error("Empty response from model");
         }
-    } catch (error) {
-        console.error("Image analysis error:", error);
-        throw new Error(`Failed to analyze image: ${error}`);
-    }
+    }, "Image analysis");
 }
 
 export async function optimizeSocialContent(platform: string, content: string, craftType: string): Promise<{ optimizedContent: string; hashtags: string[]; caption: string }> {
-    try {
+    return retryWithBackoff(async () => {
         const prompt = `Optimize this social media content for ${platform}:
         
         Content: ${content}
@@ -161,14 +199,11 @@ export async function optimizeSocialContent(platform: string, content: string, c
         } else {
             throw new Error("Empty response from model");
         }
-    } catch (error) {
-        console.error("Social content optimization error:", error);
-        throw new Error(`Failed to optimize social content: ${error}`);
-    }
+    }, "Social content optimization");
 }
 
 export async function optimizeProductListing(productName: string, platform: string, description: string): Promise<{ optimizedTitle: string; optimizedDescription: string; keywords: string[] }> {
-    try {
+    return retryWithBackoff(async () => {
         const prompt = `Optimize this product listing for ${platform}:
         
         Product Name: ${productName}
@@ -220,14 +255,11 @@ export async function optimizeProductListing(productName: string, platform: stri
         } else {
             throw new Error("Empty response from model");
         }
-    } catch (error) {
-        console.error("Product listing optimization error:", error);
-        throw new Error(`Failed to optimize product listing: ${error}`);
-    }
+    }, "Product listing optimization");
 }
 
 export async function generateHeritageStory(technique: string, culturalContext: string): Promise<string> {
-    try {
+    return retryWithBackoff(async () => {
         const prompt = `Create a detailed heritage story about this traditional craft technique:
         
         Technique/Tradition: ${technique}
@@ -249,14 +281,11 @@ export async function generateHeritageStory(technique: string, culturalContext: 
         });
 
         return response.text || "Unable to generate heritage story at this time.";
-    } catch (error) {
-        console.error("Heritage story generation error:", error);
-        throw new Error(`Failed to generate heritage story: ${error}`);
-    }
+    }, "Heritage story generation");
 }
 
 export async function generateArtistStatement(artistJourney: string, inspiration?: string, philosophy?: string): Promise<string> {
-    try {
+    return retryWithBackoff(async () => {
         const prompt = `Create a professional artist statement based on this information:
         
         Artist Journey: ${artistJourney}
@@ -279,62 +308,61 @@ export async function generateArtistStatement(artistJourney: string, inspiration
         });
 
         return response.text || "Unable to generate artist statement at this time.";
-    } catch (error) {
-        console.error("Artist statement generation error:", error);
-        throw new Error(`Failed to generate artist statement: ${error}`);
-    }
+    }, "Artist statement generation");
 }
 
 export async function analyzeMarketTrends(craftType: string): Promise<{ demandIncrease: number; avgPrice: number; keywords: string[] }> {
     try {
-        const prompt = `Analyze current market trends for ${craftType} products:
-        
-        Provide insights on:
-        - Current demand trends and growth patterns
-        - Average pricing for handmade ${craftType} items
-        - Trending keywords and search terms
-        - Market opportunities for artisans
-        
-        Base your analysis on general market knowledge and trends in the handmade/artisan marketplace.
-        
-        Respond with JSON in this format:
-        {
-            "demandIncrease": 25,
-            "avgPrice": 45,
-            "keywords": ["sustainable", "handmade", "artisan"]
-        }`;
+        return await retryWithBackoff(async () => {
+            const prompt = `Analyze current market trends for ${craftType} products:
+            
+            Provide insights on:
+            - Current demand trends and growth patterns
+            - Average pricing for handmade ${craftType} items
+            - Trending keywords and search terms
+            - Market opportunities for artisans
+            
+            Base your analysis on general market knowledge and trends in the handmade/artisan marketplace.
+            
+            Respond with JSON in this format:
+            {
+                "demandIncrease": 25,
+                "avgPrice": 45,
+                "keywords": ["sustainable", "handmade", "artisan"]
+            }`;
 
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-pro",
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: "object",
-                    properties: {
-                        demandIncrease: { type: "number" },
-                        avgPrice: { type: "number" },
-                        keywords: { 
-                            type: "array",
-                            items: { type: "string" }
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-pro",
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "object",
+                        properties: {
+                            demandIncrease: { type: "number" },
+                            avgPrice: { type: "number" },
+                            keywords: { 
+                                type: "array",
+                                items: { type: "string" }
+                            },
                         },
+                        required: ["demandIncrease", "avgPrice", "keywords"],
                     },
-                    required: ["demandIncrease", "avgPrice", "keywords"],
                 },
-            },
-            contents: prompt,
-        });
+                contents: prompt,
+            });
 
-        const rawJson = response.text;
-        if (rawJson) {
-            const data = JSON.parse(rawJson);
-            return { 
-                demandIncrease: data.demandIncrease, 
-                avgPrice: data.avgPrice, 
-                keywords: data.keywords 
-            };
-        } else {
-            throw new Error("Empty response from model");
-        }
+            const rawJson = response.text;
+            if (rawJson) {
+                const data = JSON.parse(rawJson);
+                return { 
+                    demandIncrease: data.demandIncrease, 
+                    avgPrice: data.avgPrice, 
+                    keywords: data.keywords 
+                };
+            } else {
+                throw new Error("Empty response from model");
+            }
+        }, "Market trends analysis");
     } catch (error) {
         console.error("Market trends analysis error:", error);
         // Return default values if AI fails

@@ -80,9 +80,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(story);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Story generation error:", error);
-      res.status(500).json({ message: "Failed to generate story" });
+      
+      // Check if it's a Gemini API overload error
+      if (error.message && (error.message.includes('overloaded') || error.message.includes('503'))) {
+        return res.status(503).json({ 
+          message: "AI service is temporarily overloaded. Please try again in a moment.",
+          retryAfter: 30
+        });
+      }
+      
+      res.status(500).json({ 
+        message: "Failed to generate story. Please try again later." 
+      });
     }
   });
 
