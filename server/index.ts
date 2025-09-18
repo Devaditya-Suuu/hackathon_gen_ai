@@ -40,8 +40,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Initialize routes and setup
 (async () => {
+  const key = process.env.GEMINI_API_KEY;
+  log(`GEMINI_API_KEY ${key ? `(loaded: ${String(key).trim().length} chars)` : "(missing)"}`);
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -52,20 +53,22 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // Serve static files in production
-  if (process.env.NODE_ENV === 'production') {
-    const distPath = path.resolve(process.cwd(), "dist", "public");
-    app.use(express.static(distPath));
-    
-    // Catch-all handler: send back React's index.html file for any non-API routes
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  } else {
-    // Development mode
+  // importantly only setup vite in development and after
+  // setting up all the other routes so the catch-all route
+  // doesn't interfere with the other routes
+  if (app.get("env") === "development") {
     await setupVite(app, server);
+  } else {
+    serveStatic(app);
   }
+
+  // ALWAYS serve the app on the port specified in the environment variable PORT
+  // Railway will set this automatically
+  const port = parseInt(process.env.PORT || '5000', 10);
+  server.listen(port, "0.0.0.0", () => {
+    log(`serving on port ${port}`);
+  });
 })();
 
-// For Vercel serverless
+// For Vercel serverless (only used in production)
 export default app;
