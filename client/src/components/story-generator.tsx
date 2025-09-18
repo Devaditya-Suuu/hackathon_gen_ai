@@ -28,10 +28,11 @@ export default function StoryGenerator() {
         description: "Your craft story has been created successfully!",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      const message = typeof error?.message === 'string' ? error.message : 'Failed to generate story. Please try again.';
       toast({
         title: "Error",
-        description: "Failed to generate story. Please try again.",
+        description: message,
         variant: "destructive",
       });
     },

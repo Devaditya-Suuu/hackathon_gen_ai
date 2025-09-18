@@ -26,17 +26,7 @@ export default function Dashboard() {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-foreground mb-2" data-testid="welcome-heading">
-            Welcome back, <span data-testid="user-name">{user?.name || 'User'}!</span>
-          </h2>
-          <p className="text-muted-foreground" data-testid="welcome-description">
-            Let's enhance your craft's digital presence with AI-powered tools.
-          </p>
-        </div>
-
-        {/* Quick Stats */}
-        <StatsCards analytics={analytics} />
+        
 
         {/* AI Tools Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">

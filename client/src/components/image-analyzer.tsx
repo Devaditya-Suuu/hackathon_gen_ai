@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Eye, Upload, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequestForm } from "@/lib/queryClient";
 
 export default function ImageAnalyzer() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -15,16 +16,7 @@ export default function ImageAnalyzer() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('image', file);
-      
-      const response = await fetch('/api/images/analyze', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to analyze image');
-      }
-      
+      const response = await apiRequestForm('POST', '/api/images/analyze', formData);
       return response.json();
     },
     onSuccess: (data) => {

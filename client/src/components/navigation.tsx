@@ -20,22 +20,7 @@ export default function Navigation({ user }: NavigationProps) {
             </span>
           </div>
           
-          <div className="flex items-center space-x-4">
-            <button className="text-muted-foreground hover:text-foreground" data-testid="button-notifications">
-              <Bell className="text-lg" />
-            </button>
-            <button className="text-muted-foreground hover:text-foreground" data-testid="button-settings">
-              <Settings className="text-lg" />
-            </button>
-            {user?.profileImage && (
-              <img 
-                src={user.profileImage} 
-                alt="Profile" 
-                className="w-8 h-8 rounded-full" 
-                data-testid="img-profile"
-              />
-            )}
-          </div>
+          
         </div>
       </div>
     </nav>

@@ -2,7 +2,11 @@ import * as fs from "fs";
 import { GoogleGenAI } from "@google/genai";
 
 // This API key is from Gemini Developer API Key, not vertex AI API Key
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const apiKey = process.env.GEMINI_API_KEY || "";
+if (!apiKey) {
+    console.warn("GEMINI_API_KEY is not set. AI features will fail until it is configured.");
+}
+const ai = new GoogleGenAI({ apiKey });
 
 // Retry configuration
 const RETRY_CONFIG = {
@@ -34,11 +38,24 @@ async function retryWithBackoff<T>(
         break;
       }
       
-      // Calculate delay with exponential backoff
-      const delay = Math.min(
-        RETRY_CONFIG.baseDelay * Math.pow(2, attempt),
-        RETRY_CONFIG.maxDelay
-      );
+      // Prefer server-provided retry delay if present (RetryInfo)
+      let delay = 0;
+      const retryInfo = error?.error?.details?.find?.((d: any) => d['@type']?.includes('RetryInfo'));
+      const retryDelay = retryInfo?.retryDelay || error?.error?.retryDelay;
+      if (retryDelay) {
+        // retryDelay like "32s" or { seconds: 32 }
+        const seconds = typeof retryDelay === 'string' && retryDelay.endsWith('s')
+          ? parseInt(retryDelay.replace('s',''), 10)
+          : (retryDelay.seconds ?? 0);
+        delay = Math.max(0, Math.min(seconds * 1000, RETRY_CONFIG.maxDelay));
+      }
+      if (!delay) {
+        // Calculate delay with exponential backoff
+        delay = Math.min(
+          RETRY_CONFIG.baseDelay * Math.pow(2, attempt),
+          RETRY_CONFIG.maxDelay
+        );
+      }
       
       console.warn(`${context} failed (attempt ${attempt + 1}/${RETRY_CONFIG.maxRetries + 1}), retrying in ${delay}ms:`, error.message);
       await new Promise(resolve => setTimeout(resolve, delay));
@@ -47,6 +64,8 @@ async function retryWithBackoff<T>(
   
   throw lastError;
 }
+
+const MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
 
 export async function generateStory(craftType: string, focus: string): Promise<{ title: string; content: string }> {
     return retryWithBackoff(async () => {
@@ -68,7 +87,7 @@ export async function generateStory(craftType: string, focus: string): Promise<{
         }`;
 
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-pro",
+            model: MODEL,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -80,7 +99,7 @@ export async function generateStory(craftType: string, focus: string): Promise<{
                     required: ["title", "content"],
                 },
             },
-            contents: prompt,
+            contents: [prompt],
         });
 
         const rawJson = response.text;
@@ -122,7 +141,7 @@ export async function analyzeImage(imagePath: string): Promise<{ description: st
         ];
 
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-pro",
+            model: MODEL,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -134,7 +153,7 @@ export async function analyzeImage(imagePath: string): Promise<{ description: st
                     required: ["description", "marketingCopy"],
                 },
             },
-            contents: contents,
+            contents,
         });
 
         const rawJson = response.text;
@@ -169,7 +188,7 @@ export async function optimizeSocialContent(platform: string, content: string, c
         }`;
 
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-pro",
+            model: MODEL,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -185,7 +204,7 @@ export async function optimizeSocialContent(platform: string, content: string, c
                     required: ["optimizedContent", "hashtags", "caption"],
                 },
             },
-            contents: prompt,
+            contents: [prompt],
         });
 
         const rawJson = response.text;
@@ -225,7 +244,7 @@ export async function optimizeProductListing(productName: string, platform: stri
         }`;
 
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-pro",
+            model: MODEL,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -241,7 +260,7 @@ export async function optimizeProductListing(productName: string, platform: stri
                     required: ["optimizedTitle", "optimizedDescription", "keywords"],
                 },
             },
-            contents: prompt,
+            contents: [prompt],
         });
 
         const rawJson = response.text;
@@ -276,8 +295,8 @@ export async function generateHeritageStory(technique: string, culturalContext: 
         Focus on authenticity and respect for the cultural heritage.`;
 
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-pro",
-            contents: prompt,
+            model: MODEL,
+            contents: [prompt],
         });
 
         return response.text || "Unable to generate heritage story at this time.";
@@ -303,8 +322,8 @@ export async function generateArtistStatement(artistJourney: string, inspiration
         The statement should be suitable for portfolios, exhibitions, and professional presentations.`;
 
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-pro",
-            contents: prompt,
+            model: MODEL,
+            contents: [prompt],
         });
 
         return response.text || "Unable to generate artist statement at this time.";
@@ -332,7 +351,7 @@ export async function analyzeMarketTrends(craftType: string): Promise<{ demandIn
             }`;
 
             const response = await ai.models.generateContent({
-                model: "gemini-2.5-pro",
+                model: MODEL,
                 config: {
                     responseMimeType: "application/json",
                     responseSchema: {
@@ -348,7 +367,7 @@ export async function analyzeMarketTrends(craftType: string): Promise<{ demandIn
                         required: ["demandIncrease", "avgPrice", "keywords"],
                     },
                 },
-                contents: prompt,
+                contents: [prompt],
             });
 
             const rawJson = response.text;

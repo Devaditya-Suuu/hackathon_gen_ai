@@ -171,6 +171,7 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const post: SocialPost = {
       ...insertPost,
+      hashtags: [...(insertPost.hashtags ?? [])] as string[],
       id,
       createdAt: new Date()
     };
@@ -178,7 +179,7 @@ export class MemStorage implements IStorage {
     
     // Update analytics
     const analytics = this.analytics.get(insertPost.userId);
-    if (analytics) {
+    if (analytics && analytics.socialPosts !== null) {
       analytics.socialPosts += 1;
       analytics.updatedAt = new Date();
     }
@@ -194,6 +195,7 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const listing: ProductListing = {
       ...insertListing,
+      keywords: [...(insertListing.keywords ?? [])] as string[],
       id,
       createdAt: new Date()
     };
@@ -224,6 +226,8 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const portfolio: Portfolio = {
       ...insertPortfolio,
+      tags: [...(insertPortfolio.tags ?? [])] as string[],
+      isPublic: insertPortfolio.isPublic ?? false,
       id,
       createdAt: new Date()
     };

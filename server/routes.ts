@@ -82,6 +82,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(story);
     } catch (error: any) {
       console.error("Story generation error:", error);
+      if (error?.status === 400 && /API key not valid/i.test(error?.message || "")) {
+        return res.status(401).json({ message: "Invalid Gemini API key. Update GEMINI_API_KEY and restart the server." });
+      }
       
       // Check if it's a Gemini API overload error
       if (error.message && (error.message.includes('overloaded') || error.message.includes('503'))) {
@@ -130,6 +133,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(analysis);
     } catch (error: any) {
       console.error("Image analysis error:", error);
+      if (error?.status === 400 && /API key not valid/i.test(error?.message || "")) {
+        return res.status(401).json({ message: "Invalid Gemini API key. Update GEMINI_API_KEY and restart the server." });
+      }
       if (req.file) {
         fs.unlinkSync(req.file.path);
       }
@@ -178,8 +184,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(post);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Social optimization error:", error);
+      if (error?.status === 400 && /API key not valid/i.test(error?.message || "")) {
+        return res.status(401).json({ message: "Invalid Gemini API key. Update GEMINI_API_KEY and restart the server." });
+      }
       res.status(500).json({ message: "Failed to optimize social content" });
     }
   });
@@ -215,8 +224,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(listing);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Product optimization error:", error);
+      if (error?.status === 400 && /API key not valid/i.test(error?.message || "")) {
+        return res.status(401).json({ message: "Invalid Gemini API key. Update GEMINI_API_KEY and restart the server." });
+      }
       res.status(500).json({ message: "Failed to optimize product listing" });
     }
   });
@@ -346,7 +358,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...images.map(i => ({ type: 'image', title: 'Analyzed product image', createdAt: i.createdAt })),
         ...social.map(s => ({ type: 'social', title: `Optimized ${s.platform} content`, createdAt: s.createdAt })),
         ...heritage.map(h => ({ type: 'heritage', title: `Created heritage story for ${h.technique}`, createdAt: h.createdAt }))
-      ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10);
+      ].sort((a, b) => {
+        const timeB = (b.createdAt ? new Date(b.createdAt) : new Date(0)).getTime();
+        const timeA = (a.createdAt ? new Date(a.createdAt) : new Date(0)).getTime();
+        return timeB - timeA;
+      }).slice(0, 10);
 
       res.json(activities);
     } catch (error) {
